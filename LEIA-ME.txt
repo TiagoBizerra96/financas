@@ -1,0 +1,231 @@
+FINANÇAS DA FAMÍLIA · IASMYM E TIAGO
+Sistema de controle financeiro que roda no seu computador, sem internet e sem assinatura.
+=====================================================================================
+
+0. VERSÃO ONLINE (SITE + APP NO CELULAR) — NOVO
+   Para usar no celular e no computador, com os dois vendo os mesmos dados,
+   siga o guia PUBLICAR-ONLINE.txt (uns 30 minutos, grátis, uma vez só).
+   Online, o painel lê e grava a planilha direto no Google Drive (não precisa
+   do "Google Drive para computador"). Abrindo o index.html direto do computador,
+   tudo abaixo continua funcionando como antes.
+
+1. COMO ABRIR
+-------------
+1) Descompacte a pasta "financas" em um lugar fixo do computador (ex.: Documentos).
+   Não abra direto de dentro do arquivo .zip.
+2) Dê dois cliques em "index.html". Ele abre no navegador.
+   Use o Google Chrome ou o Microsoft Edge (recomendado). O Firefox também funciona,
+   mas sem a atualização automática da planilha.
+3) Dica: depois de aberto, salve a página nos favoritos.
+
+Não use janela anônima/privada: nela o navegador apaga os dados ao fechar.
+
+
+2. COMO IMPORTAR A PLANILHA (primeira vez)
+-------------------------------------------
+1) No menu à esquerda, clique em "Configurações".
+2) Clique em "Escolher planilha" e selecione
+   "PLANILHA FINANCEIRA - IASMYM E TIAGO.xlsx".
+   (Se ela estiver no Google Drive: abra no Drive → Arquivo → Fazer download →
+   Microsoft Excel (.xlsx).)
+3) Aparece uma prévia com:
+   - as abas reconhecidas (CONTAS 2025, CONTAS 2026 e PLANILHA FINANCEIRA);
+   - os meses sem ano no cabeçalho (NOVEMBRO e DEZEMBRO). O sistema escolhe o ano
+     mais próximo de hoje (2026); você pode trocar;
+   - a conferência dos totais com os da planilha;
+   - quantos lançamentos serão criados.
+4) Clique em "Importar".
+
+O que a importação faz:
+- Cada valor de cada mês vira um lançamento (receita ou despesa) com categoria,
+  vencimento e situação. Meses passados entram como "pagos"; o mês atual e os
+  futuros, como "pendentes". Você pode mudar isso a qualquer momento.
+- Cada cartão e empréstimo da planilha vira um cadastro na tela "Cartões".
+- Quando o mesmo mês aparece em duas abas (nov e dez/2026 estão em CONTAS 2026 e
+  em PLANILHA FINANCEIRA), vale a aba mais nova (PLANILHA FINANCEIRA). Isso pode
+  ser trocado na prévia.
+
+
+3. SINCRONIZAR PAINEL E PLANILHA (nos dois sentidos)
+----------------------------------------------------
+O painel roda no seu computador e não entra na sua conta Google sozinho. Para as
+mudanças irem e voltarem automaticamente, use o "Google Drive para computador":
+
+PREPARAR (uma vez)
+1) Instale o "Google Drive para computador" (gratuito) e entre com a conta
+   tiago.bezera@gmail.com. Ele cria uma unidade/pasta "Meu Drive" (ex.: G:\Meu Drive).
+2) Abra o painel no Chrome ou no Edge → Configurações → "Vincular arquivo".
+3) Escolha Meu Drive → "PLANILHA FINANCEIRA - IASMYM E TIAGO.xlsx".
+   Quando o navegador perguntar, permita EDITAR / salvar alterações.
+   ATENÇÃO: não escolha uma cópia da pasta Downloads. Ela não recebe as alterações
+   feitas no Drive, e o que o painel gravar nela não sobe para o Drive.
+
+NO DIA A DIA
+- Ao abrir o navegador, clique uma vez em "Atualizar planilha" (topo da tela).
+  O navegador pede a permissão de novo a cada vez que é aberto; é uma regra de
+  segurança dele.
+- Mudou algo na planilha (no Drive, no Google Sheets ou no Excel)? Em até
+  30 segundos aparece no painel.
+- Mudou algo no painel? Alguns segundos depois é gravado na planilha e o Drive
+  sobe o arquivo sozinho. O rodapé do menu mostra a hora da última gravação.
+
+O QUE O PAINEL GRAVA NA PLANILHA
+- Parcelas no cartão (empréstimo no cartão, compras parceladas): somadas na
+  célula do cartão e do mês na aba PLANILHA FINANCEIRA.
+  Ex.: Thais dez/26 = fatura + parcela do empréstimo.
+- Receitas criadas no painel (ex.: valor recebido de um empréstimo): somadas na
+  linha RENDA EXTRA, no mês.
+- Valores que você editar aqui em lançamentos que vieram da planilha: gravados na
+  célula de origem. Excluir aqui um lançamento da planilha limpa a célula.
+- Aba nova "CONTROLE DO DASHBOARD": todos os lançamentos com a situação
+  (Pago/Pendente), o que o painel somou em cada célula e as dívidas do simulador.
+  Você pode mudar a coluna SITUAÇÃO nessa aba; o painel traz a mudança.
+- Compras no Pix/débito e contas que não têm linha na planilha ficam só na aba de
+  controle.
+
+COMO A PLANILHA É PROTEGIDA
+- Só as células que mudam são alteradas: cores, formatos, comentários, mesclagens
+  e fórmulas continuam como estão.
+- Os totais com fórmula são recalculados quando a planilha é aberta (Excel,
+  Google Sheets ou LibreOffice).
+- Antes de gravar, o painel sempre lê a planilha e traz o que mudou nela, para não
+  apagar edições feitas fora.
+- O que o painel soma numa célula fica anotado na aba de controle; por isso, ao
+  ler a planilha de novo, nada é contado duas vezes.
+- Se a planilha estiver aberta no Excel do computador, a gravação pode falhar
+  (o Excel trava o arquivo). Feche o Excel e clique em "Atualizar planilha".
+  Editar pelo Google Sheets no navegador não trava.
+
+SEM O GOOGLE DRIVE PARA COMPUTADOR
+- Para trazer mudanças da planilha: no Drive, Arquivo → Fazer download →
+  Microsoft Excel (.xlsx); depois "Atualizar planilha" e escolha o arquivo baixado.
+- Nesse modo o painel só lê. Para levar as mudanças do painel, use Configurações
+  → "Exportar para Excel".
+- Firefox: só funciona esse modo manual.
+
+O que é preservado ao trazer mudanças da planilha: situação (pago/pendente),
+observações, forma de pagamento, cartão e qualquer valor, data ou descrição que
+você mudou aqui.
+
+
+4. AS SEÇÕES
+------------
+Dashboard ............ Resumo do mês: renda, gastos por tipo, saldo, % da renda
+                       comprometida, dívidas em aberto, dinheiro guardado e
+                       próximos vencimentos. Verde = até 70% da renda, amarelo =
+                       até 90%, vermelho = acima de 90% ou saldo negativo.
+Análise mensal ....... Escolha mês e ano: comparação com o mês anterior,
+                       categorias, contas pagas e a pagar, texto explicativo e
+                       6 gráficos de evolução.
+Contas a pagar ....... Escolha o mês e marque cada conta como paga (e cada receita
+                       como recebida). O painel se atualiza na hora: receitas do mês,
+                       já recebido, despesas, já pago, falta pagar, DISPONÍVEL AGORA
+                       e saldo previsto. Empréstimos entram juntos: o valor recebido
+                       como receita e as parcelas como contas. Os pagamentos das
+                       dívidas do Simulador de dívidas também aparecem; marcar como
+                       paga registra o pagamento na dívida.
+Cartões .............. Fatura do mês, próximo vencimento, parcelas futuras e saldo
+                       previsto de cada cartão e empréstimo. Limites e juros não
+                       estão na planilha: cadastre em "Editar". "Unir com…" junta
+                       cartões que aparecem com nomes diferentes nas abas.
+Simulador de dívidas . Rotativo (juros sobre o saldo, você escolhe quanto paga) ou
+                       parcelado (parcelas fixas, tabela Price). Registre os
+                       pagamentos (parcial, extra, quitação), veja a tabela de
+                       amortização e compare cenários (R$ 500, 700, 1.000 por mês,
+                       outra taxa, extras).
+Simulador de cartão .. Empréstimo feito no cartão de crédito. Modo "Como a operadora
+de crédito             mostra": informe o total a pagar, as parcelas e o valor que
+                       você recebe (ou a taxa da operadora; um calcula o outro).
+                       Ex.: paga R$ 3.000 em 5× de R$ 600 e recebe R$ 2.772,90
+                       (taxa de 7,57% descontada na hora). O valor recebido vira
+                       receita no mês. Há também o modo "pela taxa de juros". Mostra
+                       cada fatura do cartão com a parcela somada, a sobra do mês com
+                       e sem o empréstimo e compara 3, 6, 10, 12, 18 e 24 parcelas.
+                       "Efetivar" lança as parcelas nas faturas do cartão (e o valor
+                       recebido como receita); "Desfazer" remove.
+Simulador financeiro . Teste uma nova renda, despesa, compra parcelada,
+                       empréstimo, mudança de salário ou gasto extraordinário e
+                       veja o efeito em 3, 6 e 12 meses. Não altera nada até você
+                       clicar em "Efetivar".
+Contas e despesas .... Todos os lançamentos: filtrar, adicionar (com opção de
+                       repetir por vários meses), editar, excluir, marcar como pago.
+                       Com um mês escolhido, mostra o caixa: Já recebido, Contas
+                       pagas, DISPONÍVEL AGORA (recebido − pago), Falta pagar e Saldo
+                       previsto no fim do mês.
+                       - Compra no Pix, débito, dinheiro ou transferência com data de
+                         hoje já entra como paga e sai do "Disponível agora" na hora.
+                       - Compra no cartão de crédito: escolha o cartão e as parcelas;
+                         cada parcela vai para a fatura do mês correspondente.
+                       - Marcar uma conta como paga tira o valor do "Disponível agora".
+                       - Receitas contam como recebidas quando você marca, ou quando
+                         a data delas chega.
+Projeção anual ....... Os próximos 12 meses: receitas, despesas, comprometimento,
+                       saldo, acumulado e dívidas restantes. Destaca os meses mais
+                       apertados.
+Configurações ........ Importar, atualização automática, exportar para Excel,
+                       backup, categorias, gasto variável previsto e reserva.
+
+IMPORTANTE: a planilha não tem gastos do dia a dia (mercado, transporte, farmácia).
+Lance-os em "Contas e despesas" ou informe uma previsão mensal em Configurações →
+Ajustes. Sem isso, a sobra aparece maior do que é.
+
+
+5. BACKUP E RESTAURAÇÃO
+-----------------------
+Os dados ficam guardados dentro do navegador deste computador (IndexedDB).
+Se você limpar os "dados de navegação" do navegador, eles são apagados.
+
+- Backup: Configurações → "Baixar backup". Salva um arquivo .json na pasta
+  Downloads. Faça isso com frequência (ex.: toda semana) e guarde uma cópia no Drive.
+- Restaurar: Configurações → "Restaurar backup" e escolha o .json.
+  Serve também para levar os dados para outro computador.
+- Exportar para Excel: gera uma planilha com resumo mensal, todos os lançamentos,
+  cartões, dívidas, pagamentos e projeção.
+
+
+6. DIFERENÇAS ENCONTRADAS NA PLANILHA ORIGINAL
+----------------------------------------------
+A conferência mostra que algumas fórmulas de total da planilha deixam linhas de fora.
+O sistema soma TODAS as linhas, por isso alguns totais ficam maiores que os da
+planilha:
+- CONTAS 2025, linha 33 (total de cada mês): não soma "EMPRÉSTIMO MERCADO PAGO
+  TIAGO" (linha 24) nem "BANCO PAN" (linha 30). Em dezembro (O33), a fórmula soma
+  o número fixo 30 em vez da célula O30 (R$ 265,80).
+- CONTAS 2026, linha 31 (TOTAL MÊS): =SOMA(D6:D27) não inclui a linha 28
+  "CARTÃO MERCADO PAGO - EMPRESTIMO" (R$ 154,06 por mês).
+- CONTAS 2025: 6 valores soltos nas colunas S e T (ex.: T13 = 284,2) estão fora
+  das colunas de meses e não foram importados.
+Na aba PLANILHA FINANCEIRA, todos os totais conferem.
+
+
+7. PROBLEMAS COMUNS
+-------------------
+- "Não foi possível abrir o banco de dados": não use janela anônima e atualize o
+  navegador.
+- A tela está vazia: importe a planilha (Configurações).
+- A atualização automática parou: Configurações → "Reconectar".
+- Arquivo vinculado "não encontrado": a planilha mudou de pasta. Vincule de novo.
+
+
+8. ARQUIVOS DA PASTA
+--------------------
+index.html ............ página principal (abra este)
+css/style.css ......... visual
+js/ ................... funcionamento (importação, cálculos e telas)
+lib/xlsx.full.min.js .. SheetJS 0.18.5 (leitura e gravação de Excel, licença Apache 2.0)
+lib/chart.umd.min.js .. Chart.js 4.4.4 (gráficos, licença MIT)
+lib/jszip.min.js ...... JSZip 3.10.1 (grava na planilha sem perder a formatação, licença MIT)
+testes/ ............... testes automáticos dos cálculos (para quem programa:
+                        "npm install xlsx" e depois
+                        "node testes/teste-calculos.js caminho/da/planilha.xlsx")
+
+Sobre o SheetJS: a versão 0.18.5 é a última publicada no npm. Versões mais novas
+(em cdn.sheetjs.com) corrigem falhas que só afetam arquivos maliciosos; como o
+sistema só abre a planilha de vocês, o risco é baixo. Para atualizar, troque
+lib/xlsx.full.min.js pelo arquivo novo com o mesmo nome.
+
+Este sistema é uma ferramenta de organização e não substitui orientação de um
+profissional de finanças. Confira as taxas de juros reais no app de cada banco.
+   PUBLICAR-ONLINE.txt ..... passo a passo para colocar online e instalar o app
+   sw.js, manifest.webmanifest, icons/ ... arquivos do app instalável
+   js/google.js, js/nuvem.js, js/config-online.js ... login Google e sincronização online

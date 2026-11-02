@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finanças · Iasmym e Tiago</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f5f74">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Finanças">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">R$</div>
+      <div><div class="brand-name">Finanças da família</div><div class="brand-sub">Iasmym e Tiago</div></div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Seções">
+      <a href="#dashboard" data-route="dashboard"><span class="ico" data-ico="home"></span>Dashboard</a>
+      <a href="#mensal" data-route="mensal"><span class="ico" data-ico="calendar"></span>Análise mensal</a>
+      <a href="#contas" data-route="contas"><span class="ico" data-ico="check"></span>Contas a pagar</a>
+      <a href="#cartoes" data-route="cartoes"><span class="ico" data-ico="card"></span>Cartões</a>
+      <a href="#dividas" data-route="dividas"><span class="ico" data-ico="debt"></span>Simulador de dívidas</a>
+      <a href="#simcartao" data-route="simcartao"><span class="ico" data-ico="card"></span>Simulador de cartão de crédito</a>
+      <a href="#simulador" data-route="simulador"><span class="ico" data-ico="sliders"></span>Simulador financeiro</a>
+      <a href="#lancamentos" data-route="lancamentos"><span class="ico" data-ico="list"></span>Contas e despesas</a>
+      <a href="#projecao" data-route="projecao"><span class="ico" data-ico="trend"></span>Projeção anual</a>
+      <a href="#config" data-route="config"><span class="ico" data-ico="gear"></span>Configurações</a>
+    </nav>
+    <div class="sidebar-foot" id="syncInfo">Nenhuma planilha importada</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Abrir menu"><span class="ico" data-ico="menu"></span></button>
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="topbar-actions" id="topActions"></div>
+    </header>
+    <main id="view" class="view" tabindex="-1"></main>
+  </div>
+</div>
+<div class="scrim" id="scrim"></div>
+<div id="modalRoot"></div>
+<input type="file" id="arqGlobal" accept=".xlsx,.xlsm,.xls" hidden>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/chart.umd.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/categorias.js"></script>
+<script src="js/db.js"></script>
+<script src="js/finance.js"></script>
+<script src="js/importer.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/views/dashboard.js"></script>
+<script src="js/views/mensal.js"></script>
+<script src="js/views/contas.js"></script>
+<script src="js/views/cartoes.js"></script>
+<script src="js/views/dividas.js"></script>
+<script src="js/views/simulador.js"></script>
+<script src="js/views/simcartao.js"></script>
+<script src="js/views/lancamentos.js"></script>
+<script src="js/views/projecao.js"></script>
+<script src="js/views/config.js"></script>
+<script src="js/writer.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/config-online.js"></script>
+<script src="js/google.js"></script>
+<script src="js/nuvem.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

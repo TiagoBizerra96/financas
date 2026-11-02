@@ -1,0 +1,118 @@
+COLOCAR O SISTEMA ONLINE (SITE + APP NO CELULAR) — PASSO A PASSO
+================================================================
+
+O que vocês terão no final
+--------------------------
+- Um endereço de site, tipo  https://SEU-USUARIO.github.io/financas/
+- Abre no computador e no celular. No celular dá para INSTALAR como app (ícone na tela inicial).
+- Cada um entra com a própria conta Google. O sistema lê e grava a planilha
+  "PLANILHA FINANCEIRA - IASMYM E TIAGO.xlsx" direto no Google Drive.
+- Pagamentos, pagamentos parciais, dívidas e simulações ficam num arquivo de dados
+  ao lado da planilha ("... dados do painel (não apagar).json"). Os dois veem tudo igual.
+- Tudo gratuito: GitHub Pages (hospedagem) + Google Cloud (só o login; não cobra nada).
+
+Tempo: uns 30 minutos, uma vez só. Faça pelo computador.
+
+
+PASSO 1 — Hospedar o site no GitHub (grátis)
+--------------------------------------------
+1. Crie uma conta em https://github.com (pode usar o e-mail do Google).
+   Guarde o nome de usuário que escolher (ex.: tiagobezerra).
+2. Clique em "+" (canto superior direito) → "New repository".
+   - Repository name: financas
+   - Marque "Public" (o GitHub Pages grátis exige público. Fique tranquilo:
+     o site NÃO contém nenhum dado de vocês; os dados ficam no Google Drive
+     e no aparelho, e só abrem com o login de vocês).
+   - Clique em "Create repository".
+3. Na página do repositório, clique em "uploading an existing file".
+   Descompacte o zip no computador e ARRASTE TODO O CONTEÚDO da pasta "financas"
+   (index.html, sw.js, manifest.webmanifest e as pastas css, js, lib, icons).
+   Não precisa enviar a pasta "testes" nem os .txt.
+   Clique em "Commit changes".
+4. Vá em Settings → Pages:
+   - Source: "Deploy from a branch"
+   - Branch: "main" e pasta "/ (root)" → Save.
+5. Espere 1–2 minutos. O endereço aparece no topo dessa página:
+   https://SEU-USUARIO.github.io/financas/
+   Abra para conferir (vai aparecer o painel vazio — ainda falta o passo 2).
+
+
+PASSO 2 — Liberar o login com Google (grátis)
+---------------------------------------------
+1. Entre em https://console.cloud.google.com com a conta do Tiago (dona da planilha).
+   Aceite os termos se pedir. NÃO precisa ativar faturamento/cartão.
+2. No topo, "Selecionar projeto" → "Novo projeto" → nome: Financas → Criar.
+   Confirme que o projeto "Financas" está selecionado no topo.
+3. Menu ☰ → "APIs e serviços" → "Biblioteca" → procure "Google Drive API" → Ativar.
+4. Menu ☰ → "APIs e serviços" → "Tela de consentimento OAuth" (ou "Google Auth Platform"):
+   - Tipo de usuário: Externo → Criar.
+   - Nome do app: Finanças Iasmym e Tiago; e-mail de suporte: o seu; e-mail do desenvolvedor: o seu.
+   - Salve e continue até o fim (não precisa adicionar escopos aqui).
+   - Em "Usuários de teste" (ou "Público-alvo" → "Usuários de teste"): adicione
+     o Gmail do Tiago e o Gmail da Iasmym. SÓ quem estiver nessa lista consegue entrar.
+   - Deixe o app no modo "Teste" (não precisa publicar nem pedir verificação).
+5. Menu ☰ → "APIs e serviços" → "Credenciais" → "+ Criar credenciais" → "ID do cliente OAuth":
+   - Tipo de aplicativo: Aplicativo da Web. Nome: Financas site.
+   - "Origens JavaScript autorizadas" → Adicionar URI:
+        https://SEU-USUARIO.github.io
+     (só isso, sem /financas e sem barra no final)
+   - Deixe "URIs de redirecionamento" vazio. Criar.
+   - Copie o "ID do cliente" (termina com .apps.googleusercontent.com).
+6. Coloque o ID no site (escolha UM jeito):
+   a) Recomendado (vale para os dois): no GitHub, abra js/config-online.js → ícone de lápis
+      (Edit) → cole o ID entre as aspas:  googleClientId: '1234-abc.apps.googleusercontent.com'
+      → "Commit changes". Espere 1–2 min.
+   b) Ou: no site, Configurações → "Online com Google Drive" → cole o ID → Salvar
+      (precisa repetir em cada aparelho).
+
+
+PASSO 3 — Primeiro uso (Tiago, no computador)
+---------------------------------------------
+1. Abra https://SEU-USUARIO.github.io/financas/ e clique em "Entrar com Google".
+2. O Google vai mostrar "O Google não verificou este app". É normal (o app é de vocês,
+   em modo teste): clique em "Continuar". Marque a permissão do Google Drive e confirme.
+3. O sistema acha a planilha no seu Drive e mostra a prévia → "Importar".
+   Ele cria o arquivo de dados do painel na mesma pasta da planilha.
+4. Configurações → "Online com Google Drive" → "Compartilhar com a outra pessoa" →
+   digite o Gmail da Iasmym. (Dá a ela permissão de editar a planilha e o arquivo de dados.)
+   Se você já tinha marcado pagamentos no painel do computador (versão local), antes de
+   entrar online faça Configurações → Backup e, depois de entrar, Restaurar backup.
+
+
+PASSO 4 — No celular (cada um no seu)
+-------------------------------------
+1. Abra o mesmo endereço no celular e toque em "Entrar com Google" (cada um com a sua conta).
+2. Instale como app:
+   - Android (Chrome): menu ⋮ → "Instalar app" (ou "Adicionar à tela inicial").
+   - iPhone: abra no SAFARI → botão Compartilhar → "Adicionar à Tela de Início".
+   Também tem o botão "Instalar app" em Configurações.
+
+
+Como funciona no dia a dia
+--------------------------
+- Marcou "Paga" ou pagamento parcial no celular → em poucos segundos vai para o Drive
+  (planilha + arquivo de dados). O outro vê ao abrir o app ou em até 30 segundos.
+- Mexeu na planilha pelo Drive/Excel → o app traz a mudança sozinho.
+- Se os dois mexerem ao mesmo tempo em itens diferentes, as duas mudanças ficam.
+  No MESMO item, vale a alteração mais recente.
+- Sem internet o app abre e funciona com os dados do aparelho; sincroniza quando voltar.
+- Por segurança o Google pede para entrar de novo de vez em quando (a sessão dura ~1 hora
+  com o app aberto). Basta tocar em "Entrar com Google" — leva 2 segundos.
+- Não apague nem renomeie o arquivo "... dados do painel (não apagar).json" no Drive.
+- O botão "Atualizar planilha" no topo força uma sincronização na hora.
+
+Atualizar o sistema no futuro
+-----------------------------
+Se eu (Claude) te mandar uma versão nova: no GitHub, "Add file" → "Upload files",
+arraste os arquivos novos por cima e "Commit changes". Os aparelhos pegam a versão
+nova na próxima vez que abrirem (aparece um aviso pedindo para recarregar).
+
+Problemas comuns
+----------------
+- "Acesso bloqueado / app não concluiu a verificação": o e-mail não está em
+  "Usuários de teste" (passo 2.4).
+- "redirect_uri_mismatch" ou "origin not allowed": a origem no passo 2.5 está diferente
+  do endereço do site (tem que ser exatamente https://SEU-USUARIO.github.io).
+- "Não encontrei a planilha": na Iasmym, aceite o compartilhamento; ou use
+  Configurações → "Trocar planilha" e escolha o arquivo.
+- Login abre e fecha sem entrar: libere pop-ups para o site no navegador.
