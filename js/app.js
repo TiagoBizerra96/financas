@@ -76,7 +76,7 @@
     let h = '';
     const N = App.nuvem;
     if (N && N.configurado()) {
-      if (!N.ativa()) h += '<div class="banner warn">' + ui.icon('link') + '<div><b>Entre com sua conta Google para sincronizar</b>Assim o painel lê e grava a planilha no Google Drive e vocês dois veem os mesmos dados. <button class="btn sm primary" data-entrar-google style="margin-left:6px">Entrar com Google</button></div></div>';
+      if (!N.ativa() && !App.google.jaEntrou()) h += '<div class="banner warn">' + ui.icon('link') + '<div><b>Entre com sua conta Google para sincronizar</b>Assim o painel lê e grava a planilha no Google Drive e vocês dois veem os mesmos dados. <button class="btn sm primary" data-entrar-google style="margin-left:6px">Entrar com Google</button></div></div>';
       else if (N.erro()) h += '<div class="banner bad">' + ui.icon('alert') + '<div><b>Problema ao sincronizar com o Drive</b>' + U.esc(N.erro()) + ' <button class="btn sm" data-sync-nuvem style="margin-left:6px">Tentar de novo</button></div></div>';
       return h;
     }

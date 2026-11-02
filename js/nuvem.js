@@ -129,7 +129,7 @@
       ultimo = Date.now(); erro = null;
     } catch (e) {
       console.error(e); erro = e.message || String(e);
-      if (e.precisaLogin) { ativa = G.logado(); App.render(); }
+      if (e.precisaLogin) { erro = null; if (!G.jaEntrou()) { ativa = false; App.render(); } }
       else if (forcar) ui.toast(erro, 'bad', 8000);
       sujo = sujo || envia;
     } finally {
@@ -144,7 +144,7 @@
     ativa: () => ativa && G.logado(),
     ultimo: () => ultimo, erro: () => erro,
     cfg,
-    status: () => (!N.configurado() ? '' : !G.logado() ? 'online: entre com o Google' : 'online como ' + ((G.usuario() || {}).email || '') + (ultimo ? ' · sincronizado às ' + new Date(ultimo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '') + (erro ? ' · ERRO: ' + erro : '')),
+    status: () => (!N.configurado() ? '' : !G.logado() ? (G.jaEntrou() ? 'online: reconecta ao Google no próximo toque na tela' : 'online: entre com o Google') : 'online como ' + ((G.usuario() || {}).email || '') + (ultimo ? ' · sincronizado às ' + new Date(ultimo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '') + (erro ? ' · ERRO: ' + erro : '')),
     async entrar() {
       try { await G.entrar(true); ativa = true; App.render(); await ciclo(true); App.render(); ui.toast('Conectado ao Google Drive como ' + G.usuario().email + '.', 'good'); }
       catch (e) { ui.toast('Não foi possível entrar: ' + e.message, 'bad', 8000); }
@@ -161,6 +161,17 @@
       if (!N.configurado()) return;
       // O login precisa de um toque (o navegador bloqueia a janela do Google sem clique): o painel mostra o botão "Entrar com Google".
       G.carregar().catch(() => {});
+      // Sessão ainda válida guardada neste aparelho: já começa sincronizando, sem pedir nada.
+      if (G.logado()) { ativa = true; setTimeout(() => ciclo(true).then(() => App.render()), 0); }
+      // Renovação automática: o Google só libera a janela de acesso junto com um toque/clique.
+      // Então, no primeiro toque depois que o acesso expira (ou quando faltam menos de 10 min), renova sozinho.
+      const renovar = () => {
+        if (!G.jaEntrou() || (G.logado() && G.minutosRestantes() >= 10)) return;
+        G.entrar(false).then(() => { const era = ativa; ativa = true; return ciclo(!era).then(() => { if (!era) App.render(); }); }).catch((e) => console.warn('renovação do Google', e));
+      };
+      document.addEventListener('click', renovar, true);
+      document.addEventListener('keydown', renovar, true);
+      document.addEventListener('touchend', renovar, true);
       clearInterval(timer);
       timer = setInterval(() => { if (document.visibilityState === 'visible') ciclo(false); }, 30000);
       window.addEventListener('focus', () => ciclo(false));

@@ -117,7 +117,7 @@
     return '<option value="' + U.esc(v) + '"' + (String(v) === String(atual) ? ' selected' : '') + '>' + U.esc(t) + '</option>'; }).join('') + '</select>';
 
   ui.vazio = (titulo, texto, botao) => '<div class="panel empty"><h2>' + titulo + '</h2><p>' + texto + '</p>' + (botao || '') + '</div>';
-  ui.semDados = () => (App.nuvem && App.nuvem.configurado() && !App.nuvem.ativa())
+  ui.semDados = () => (App.nuvem && App.nuvem.configurado() && !App.nuvem.ativa() && !App.google.jaEntrou())
     ? ui.vazio('Entre com sua conta Google', 'O painel busca a planilha e os dados no Google Drive. Entre para sincronizar.', '<button class="btn primary" data-entrar-google>' + ui.icon('link') + 'Entrar com Google</button>')
     : ui.vazio('Nenhum dado ainda', 'Importe a planilha Excel para começar. Os lançamentos, cartões e totais são lidos dela.',
     '<a class="btn primary" href="#config">' + ui.icon('upload') + 'Importar planilha</a>');
