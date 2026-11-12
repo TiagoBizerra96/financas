@@ -10,6 +10,7 @@
       ui.field('Nome', ui.input('nome', c.nome, 'required'), '', 'full') +
       ui.field('Tipo', ui.select('tipo', [{ v: 'cartao', t: 'Cartão de crédito' }, { v: 'emprestimo', t: 'Empréstimo, acordo ou financiamento' }], c.tipo)) +
       ui.field('Dia de vencimento', ui.input('diaVencimento', c.diaVencimento, 'type="number" min="1" max="31"')) +
+      ui.field('Dia de fechamento', ui.input('diaFechamento', c.diaFechamento, 'type="number" min="1" max="31"'), 'Compras a partir deste dia vão para a fatura seguinte') +
       ui.field('Limite total', ui.moneyInput('limite', c.limite), 'Veja no app do banco') +
       ui.field('Limite utilizado hoje', ui.moneyInput('limiteUsado', c.limiteUsado), 'Inclui parcelas futuras já lançadas') +
       ui.field('Taxa de juros (% ao mês)', ui.input('taxaJuros', c.taxaJuros != null ? String(c.taxaJuros).replace('.', ',') : '', 'inputmode="decimal"'), 'Do rotativo, do parcelamento ou do empréstimo') +
@@ -21,7 +22,7 @@
   function lerCartao(m, base) {
     const v = ui.lerForm(m.body); ui.limparErros(m.body);
     const num = (s) => { if (s === '' || s == null) return null; const n = U.parseValor(s); return isNaN(n) ? NaN : n; };
-    const o = Object.assign({}, base, { nome: v.nome.trim(), tipo: v.tipo, diaVencimento: v.diaVencimento ? +v.diaVencimento : null, limite: num(v.limite), limiteUsado: num(v.limiteUsado),
+    const o = Object.assign({}, base, { nome: v.nome.trim(), tipo: v.tipo, diaVencimento: v.diaVencimento ? +v.diaVencimento : null, diaFechamento: v.diaFechamento ? +v.diaFechamento : null, limite: num(v.limite), limiteUsado: num(v.limiteUsado),
       taxaJuros: num(v.taxaJuros), titular: v.titular.trim(), valorOriginal: num(v.valorOriginal), parcelasTotal: v.parcelasTotal ? +v.parcelasTotal : null, observacoes: v.observacoes, atualizadoEm: Date.now() });
     let ok = true;
     if (!o.nome) { ui.erro(m.body, 'nome', 'Informe um nome.'); ok = false; }
@@ -93,6 +94,7 @@
         (semLimite ? '<div class="banner info">' + ui.icon('info') + '<div><b>Limites e taxas não estão na planilha</b>Cadastre o limite total, o limite usado e os juros de cada cartão em "Editar" para ver o percentual de uso. Nada é inventado: sem esses dados, os campos ficam como "não informado".</div></div>' : '') +
         '<div class="panel-head"><h2 style="margin:0">Cartões de crédito <small>' + cartoes.length + '</small></h2><label class="check"><input type="checkbox" id="inativos"' + (mostrarInativos ? ' checked' : '') + '> Mostrar também os sem faturas futuras (' + (todos.length - ativos.length) + ')</label></div>' +
         '<div class="cards-grid">' + (cartoes.map(tile).join('') || '<p class="muted">Nenhum cartão com faturas futuras.</p>') + '</div>' +
+        (App.openfinance ? App.openfinance.painel() : '') +
         '<section class="panel"><h2>Comparação entre cartões</h2><div class="chart-box tall"><canvas id="chCartoes"></canvas></div></section>' +
         '<section class="panel"><h2>Empréstimos, acordos e financiamentos</h2><div class="table-wrap"><table><thead><tr><th>Nome</th><th class="num">Valor original</th><th class="num">Saldo devedor previsto</th><th class="num">Parcela atual</th>' +
         '<th class="num">Juros</th><th class="num">Parcelas restantes</th><th>Previsão de quitação</th><th></th></tr></thead><tbody>' +
@@ -104,6 +106,7 @@
           '<td class="actions"><button class="btn sm" data-edit="' + c.id + '">' + ui.icon('edit') + '</button></td></tr>').join('') || '<tr><td colspan="8" class="muted">Nenhum empréstimo com parcelas futuras.</td></tr>') +
         '</tbody></table></div><p class="hint">O saldo devedor previsto é a soma das parcelas que ainda aparecem na planilha. O saldo real com juros pode ser diferente: confira no app do banco ou cadastre a dívida no Simulador de dívidas.</p></section>';
 
+      if (App.openfinance) App.openfinance.ligar(view);
       view.querySelector('#inativos').addEventListener('change', (e) => { mostrarInativos = e.target.checked; App.render(); });
       view.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => App.editarCartao(st.cartoes.find((x) => x.id === b.dataset.edit))));
       view.querySelectorAll('[data-unir]').forEach((b) => b.addEventListener('click', () => unir(st.cartoes.find((x) => x.id === b.dataset.unir))));

@@ -13,6 +13,19 @@
       grupo: App.Categorias.grupoDe(l), categoria: l.categoria, pago: l.situacao === 'pago', valorPago: F.valorPago(l), parcial: F.situacaoDe(l) === 'parcial', pagamentos: l.pagamentos || [], obs: l.observacoes, origem: l.origem === 'planilha' ? 'planilha' : l.simCartaoId ? 'empréstimo no cartão' : l.origem === 'simulacao' ? 'simulação' : 'cadastrado aqui' }));
     const ds = F.contasDividasMes(mes).map((x) => ({ chave: 'd:' + x.divida.id, tipo: 'div', d: x.divida, descricao: x.divida.nome + (x.divida.modalidade === 'parcelado' ? ' (parcela)' : ' (pagamento do mês)'), valor: x.valor, data: x.data, temDia: true,
       grupo: 'divida', categoria: 'Simulador de dívidas', pago: x.pago, valorPago: x.valorPago || 0, parcial: !!x.parcial, pagamentos: (x.divida.pagamentos || []).filter((p) => U.mesDeData(p.data) === mes), origem: 'simulador de dívidas' }));
+    // Compras do Open Finance entram dentro da fatura do cartão (uma linha por cartão, não uma por compra)
+    const base = [], extras = {};
+    ls.forEach((c) => { if (c.l.origem === 'openfinance' && c.l.cartaoId) (extras[c.l.cartaoId] = extras[c.l.cartaoId] || []).push(c); else base.push(c); });
+    Object.keys(extras).forEach((cid) => {
+      const ex = extras[cid], card = App.store.state.cartoes.find((x) => x.id === cid);
+      let alvo = base.find((c) => c.tipo === 'lan' && c.l.cartaoId === cid && c.l.origem === 'planilha');
+      if (!alvo) { alvo = { chave: 'g:' + cid, tipo: 'grp', l: null, descricao: 'Fatura ' + (card ? card.nome : 'do cartão'), valor: 0, data: ex[0].data, temDia: true, grupo: 'cartao', categoria: ex[0].categoria, valorPago: 0, pagamentos: [], origem: 'Open Finance', itens: [] }; base.push(alvo); }
+      else alvo.itens = [alvo.l];
+      ex.forEach((e) => { alvo.itens.push(e.l); alvo.valor = U.round2(alvo.valor + e.valor); alvo.valorPago = U.round2(alvo.valorPago + e.valorPago); alvo.pagamentos = alvo.pagamentos.concat(e.pagamentos); });
+      alvo.compras = ex.length; alvo.valorCompras = U.round2(U.sum(ex, (e) => e.valor));
+      alvo.pago = alvo.itens.every((l) => l.situacao === 'pago'); alvo.parcial = !alvo.pago && alvo.valorPago > 0.004;
+    });
+    ls.length = 0; base.forEach((c) => ls.push(c));
     return ls.concat(ds).map((c) => Object.assign(c, { vencida: !c.pago && c.temDia && c.data < hoje }))
       .sort((a, b) => (a.data === b.data ? a.descricao.localeCompare(b.descricao) : a.data < b.data ? -1 : 1));
   }
@@ -30,9 +43,15 @@
       let valor = U.round2(U.parseValor(v.valor));
       if (!(valor > 0)) { ui.erro(m.body, 'valor', 'Informe um valor maior que zero.'); return false; }
       if (!v.data) { ui.erro(m.body, 'data', 'Informe a data.'); return false; }
-      if (c.tipo === 'lan' && valor > falta + 0.004) { ui.erro(m.body, 'valor', 'Maior que o que falta (' + U.brl(falta) + ').'); return false; }
+      if ((c.tipo === 'lan' || c.itens) && valor > falta + 0.004) { ui.erro(m.body, 'valor', 'Maior que o que falta (' + U.brl(falta) + ').'); return false; }
       const pg = { id: U.uid(), data: v.data, valor, registradoEm: Date.now() };
-      if (c.tipo === 'lan') {
+      if (c.itens) {
+        let resta = valor; const ops = [];
+        c.itens.forEach((l) => { const falta1 = U.round2(l.valor - F.valorPago(l)); if (resta <= 0.004 || falta1 <= 0.004) return; const v1 = U.round2(Math.min(resta, falta1)); resta = U.round2(resta - v1);
+          const pags = (l.pagamentos || []).concat([Object.assign({}, pg, { id: U.uid(), valor: v1 })]);
+          ops.push(Object.assign({}, l, { pagamentos: pags, situacao: U.sum(pags, (p) => p.valor) >= l.valor - 0.004 ? 'pago' : 'pendente', situacaoPresumida: false })); });
+        await App.store.putMany('lancamentos', ops);
+      } else if (c.tipo === 'lan') {
         const pagamentos = (c.l.pagamentos || []).concat([pg]);
         const total = U.sum(pagamentos, (p) => p.valor);
         await App.store.put('lancamentos', Object.assign({}, c.l, { pagamentos, situacao: total >= c.valor - 0.004 ? 'pago' : 'pendente', situacaoPresumida: false, atualizadoEm: Date.now() }));
@@ -46,7 +65,9 @@
 
   async function alternar(c, mes) {
     const desfazer = c.pago || c.parcial;
-    if (c.tipo === 'lan') {
+    if (c.itens) {
+      await App.store.putMany('lancamentos', c.itens.map((l) => Object.assign({}, l, { situacao: c.pago ? 'pendente' : 'pago', pagamentos: c.pago ? [] : l.pagamentos, situacaoPresumida: false })));
+    } else if (c.tipo === 'lan') {
       await App.store.put('lancamentos', Object.assign({}, c.l, { situacao: c.pago ? 'pendente' : 'pago', pagamentos: c.pago ? [] : c.l.pagamentos, situacaoPresumida: false, atualizadoEm: Date.now() }));
     } else if (c.parcial) { // dívida com pagamento parcial: completa o que falta
       await App.store.put('dividas', Object.assign({}, c.d, { pagamentos: (c.d.pagamentos || []).concat([{ id: U.uid(), data: mes === U.mesAtual() ? U.hojeISO() : c.data, valor: U.round2(c.valor - c.valorPago), tipo: 'normal', obs: 'Contas a pagar', registradoEm: Date.now() }]), atualizadoEm: Date.now() }));
@@ -75,7 +96,7 @@
       const nivelDisp = cx.disponivel < 0 ? 'bad' : 'good';
 
       const linha = (c) => '<div class="list-item"><span class="stripe ' + (c.pago ? 'good' : c.vencida ? 'bad' : 'warn') + '"></span><div><div class="t">' + U.esc(c.descricao) + (c.parcial ? ' <span class="pill warn">parcial</span>' : '') + '</div><div class="s">' +
-        U.esc(GRUPO_TXT[c.grupo] || c.categoria) + ' · ' + (c.temDia ? 'vence ' + U.dataBR(c.data) : 'sem dia de vencimento') + ' · ' + c.origem + (c.vencida ? ' · <span class="neg">vencida</span>' : '') +
+        U.esc(GRUPO_TXT[c.grupo] || c.categoria) + ' · ' + (c.temDia ? 'vence ' + U.dataBR(c.data) : 'sem dia de vencimento') + ' · ' + c.origem + (c.compras ? ' · <span title="Compras lançadas pelo Open Finance">inclui ' + c.compras + ' compra(s) do Open Finance: ' + U.brl(c.valorCompras) + '</span>' : '') + (c.vencida ? ' · <span class="neg">vencida</span>' : '') +
         (c.parcial ? '<br><span class="pos">pago ' + U.brl(c.valorPago) + '</span> · <span class="wrn">falta ' + U.brl(c.valor - c.valorPago) + '</span>' + (c.pagamentos.length ? ' · ' + c.pagamentos.map((p) => U.dataBR(p.data) + ' ' + U.brl(p.valor)).join(', ') : '') : '') + '</div></div>' +
         '<div class="actions" style="align-items:center;flex-wrap:wrap;justify-content:flex-end"><span class="v" style="margin-right:8px">' + U.brl(c.valor) + '</span>' +
         (c.pago ? '<span class="pill good">paga</span><button class="btn sm" data-c="' + c.chave + '">Desfazer</button>'
@@ -115,7 +136,8 @@
       view.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { const c = contas.find((x) => x.chave === b.dataset.p); if (c) pagarParcial(c, mes); }));
       view.querySelectorAll('[data-z]').forEach((b) => b.addEventListener('click', async () => { const c = contas.find((x) => x.chave === b.dataset.z); if (!c) return;
         if (!(await ui.confirmar('Desfazer pagamentos', 'Apagar os pagamentos parciais de "' + U.esc(c.descricao) + '" (' + U.brl(c.valorPago) + ')?', 'Apagar', true))) return;
-        if (c.tipo === 'lan') await App.store.put('lancamentos', Object.assign({}, c.l, { pagamentos: [], situacao: 'pendente', atualizadoEm: Date.now() }));
+        if (c.itens) await App.store.putMany('lancamentos', c.itens.map((l) => Object.assign({}, l, { pagamentos: [], situacao: 'pendente' })));
+        else if (c.tipo === 'lan') await App.store.put('lancamentos', Object.assign({}, c.l, { pagamentos: [], situacao: 'pendente', atualizadoEm: Date.now() }));
         else await App.store.put('dividas', Object.assign({}, c.d, { pagamentos: (c.d.pagamentos || []).filter((p) => U.mesDeData(p.data) !== mes), atualizadoEm: Date.now() }));
       }));
       view.querySelectorAll('[data-ed]').forEach((b) => b.addEventListener('click', () => App.editarLancamento(App.store.state.lancamentos.find((l) => l.id === b.dataset.ed))));
@@ -127,10 +149,10 @@
       view.querySelector('#novaConta').addEventListener('click', () => App.editarLancamento(null));
       const pt = view.querySelector('#pagarTodas');
       if (pt) pt.addEventListener('click', async () => {
-        const pend = contas.filter((c) => !c.pago && c.tipo === 'lan');
+        const pend = contas.filter((c) => !c.pago && (c.tipo === 'lan' || c.tipo === 'grp'));
         if (!(await ui.confirmar('Marcar todas como pagas', 'Marcar as ' + pend.length + ' contas pendentes de ' + U.mesLongo(mes) + ' (' + U.brl(U.sum(pend, (c) => c.valor)) + ') como pagas?' +
           (contas.some((c) => !c.pago && c.tipo === 'div') ? '<br>As dívidas do simulador ficam de fora: marque uma a uma para registrar o pagamento.' : ''), 'Marcar'))) return;
-        await App.store.putMany('lancamentos', pend.map((c) => Object.assign({}, c.l, { situacao: 'pago', situacaoPresumida: false, atualizadoEm: Date.now() })));
+        await App.store.putMany('lancamentos', [].concat(...pend.map((c) => c.itens || [c.l])).map((l) => Object.assign({}, l, { situacao: 'pago', situacaoPresumida: false, atualizadoEm: Date.now() })));
       });
 
       Ch.render('chAnd', { type: 'doughnut', data: { labels: ['Já pago', 'Falta pagar', 'Disponível'], datasets: [{ data: [cx.pago, cx.aPagar, Math.max(0, cx.disponivel)],

@@ -34,7 +34,7 @@
   const state = { lancamentos: [], cartoes: [], dividas: [], simulacoes: [], categorias: [], meta: {} };
   const SINCRONIZADOS = ['lancamentos', 'cartoes', 'dividas', 'simulacoes', 'categorias'];
   /** Configurações que valem para os dois usuários (vão para o arquivo de dados na nuvem). */
-  const META_COMPARTILHADA = ['gastoVariavelPrevisto', 'reservaInicial', 'aliasesCartao', 'importIgnorados', 'opcoesImportacao', 'controleGravado', 'gravarNaPlanilha', 'syncAutoAplicar'];
+  const META_COMPARTILHADA = ['gastoVariavelPrevisto', 'reservaInicial', 'aliasesCartao', 'importIgnorados', 'opcoesImportacao', 'controleGravado', 'gravarNaPlanilha', 'syncAutoAplicar','ofMapa'];
   let origemAtual = null; // 'remoto' enquanto aplica dados vindos do outro aparelho
   const carimbar = (storeName, items) => { if (origemAtual !== 'remoto' && SINCRONIZADOS.includes(storeName)) { const t = Date.now(); items.forEach((it) => { it.atualizadoEm = t; }); } };
   async function anotarExclusoes(storeName, ids) {

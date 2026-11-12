@@ -10,7 +10,7 @@
   const NOME_PLANILHA = 'PLANILHA FINANCEIRA - IASMYM E TIAGO';
   const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   let sujoDados = false;
-  let ativa = false, rodando = false, deNovo = false, sujo = false, timer = null, ultimo = null, erro = null, versoes = { planilha: null, dados: null };
+  let ativa = false, rodando = false, deNovo = false, sujo = false, timer = null, ultimo = null, erro = null, versoes = { planilha: null, dados: null, of: null };
 
   const cfg = () => App.store.getMeta('nuvem', {}) || {};
   const salvarCfg = (o) => App.store.setMetaSilencioso('nuvem', Object.assign({}, cfg(), o));
@@ -78,6 +78,26 @@
     return G.meta(novo.id);
   }
 
+  /* ---------- Open Finance ---------- */
+  let ultimaBuscaOF = 0;
+  async function lerOpenFinance(forcar) {
+    if (!App.openfinance) return;
+    const c = cfg(); let f = null;
+    if (c.ofId) { try { f = await G.meta(c.ofId); } catch (e) { if (e.status !== 404) throw e; } }
+    if (!f) {
+      if (!forcar && Date.now() - ultimaBuscaOF < 10 * 60000) return; // procura o arquivo no máximo a cada 10 min
+      ultimaBuscaOF = Date.now();
+      const achados = await G.buscar("name = '" + App.openfinance.NOME_ARQUIVO.replace(/'/g, "\\'") + "' and trashed = false");
+      if (!achados[0]) return;
+      await salvarCfg({ ofId: achados[0].id }); f = achados[0];
+    }
+    if (!forcar && f.version === versoes.of) return;
+    const dados = JSON.parse(await G.baixarTexto(f.id) || 'null');
+    versoes.of = f.version;
+    const r = await App.openfinance.receber(dados);
+    if (r && (r.novos || r.alterados || r.removidos)) sujoDados = true;
+  }
+
   /* ---------- ciclo de sincronização ---------- */
   async function ciclo(forcar) {
     if (!ativa || !G.logado()) return;
@@ -95,6 +115,8 @@
         versoes.dados = dados.version;
         if (faltaNoRemoto(remoto)) sujoDados = true;
       }
+      // 1b) compras dos cartões pelo Open Finance (arquivo salvo pelo script do Google)
+      try { await lerOpenFinance(forcar); } catch (e) { console.warn('Open Finance', e); }
       // 2) planilha: traz o que mudou nela
       let bytes = null;
       if (forcar || planilha.version !== versoes.planilha || envia) {
@@ -155,6 +177,7 @@
     async compartilhar(email) {
       const c = cfg(); if (!c.dadosId || !c.planilhaId) throw new Error('Sincronize uma vez antes de compartilhar.');
       await G.compartilhar(c.dadosId, email); await G.compartilhar(c.planilhaId, email);
+      if (c.ofId) { try { await G.compartilhar(c.ofId, email); } catch (e) { console.warn(e); } }
     },
     buscarPlanilhas: () => G.buscar("trashed = false and mimeType = '" + XLSX_MIME + "'"),
     iniciar() {
