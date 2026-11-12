@@ -90,7 +90,7 @@
         const n = r.parcelasCompra, parc = U.round2(r.o.valor / n);
         itens = Array.from({ length: n }, (_, i) => { const mes = U.mesAdd(r.faturaInicial, i);
           return Object.assign({}, r.o, { id: i ? 'lan-' + U.uid() : r.o.id, descricao: r.o.descricao + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''), valor: i < n - 1 ? parc : U.round2(r.o.valor - parc * (n - 1)),
-            mesRef: mes, data: U.dataNoMes(mes, card.diaVencimento || +r.o.data.slice(8, 10)), diaVenc: card.diaVencimento || null, cartaoId: card.id, situacao: 'pendente', grupoCompra: n > 1 ? r.o.id : null,
+            mesRef: mes, data: U.dataNoMes(mes, card.diaVencimento || +r.o.data.slice(8, 10)), diaVenc: card.diaVencimento || null, cartaoId: card.id, situacao: 'pendente', grupoCompra: n > 1 ? r.o.id : null, dataCompra: r.o.data,
             observacoes: ('Compra de ' + U.brl(r.o.valor) + ' em ' + U.dataBR(r.o.data) + (n > 1 ? ' em ' + n + '×' : '') + '. ' + (r.o.observacoes || '')).trim() }); });
       }
       for (let i = 1; !r.compraCartao && i < r.repetir; i++) {
