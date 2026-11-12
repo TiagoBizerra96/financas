@@ -30,6 +30,13 @@
     return d.venc && d.venc > d.fech ? mesFech : U.mesAdd(mesFech, 1);
   }
   OF._mesDaFatura = mesDaFatura;
+  /** Primeira fatura ainda não paga: a que já fechou mas vence hoje ou depois, senão a que está aberta. */
+  function inicioDoBanco(conta, d) {
+    const hoje = U.hojeISO(); let m = mesDaFatura(hoje, d);
+    (conta.faturas || []).forEach((f) => { if (f.vencimento && f.vencimento >= hoje) { const fm = U.mesDeData(f.vencimento); if (U.mesDiff(fm, m) > 0) m = fm; } });
+    return m;
+  }
+  OF.inicioDoBanco = (conta) => { const mp = OF.mapa()[conta.id] || {}; const card = App.store.state.cartoes.find((c) => c.id === mp.cartaoId); return inicioDoBanco(conta, dias(conta, card)); };
 
   /** Calcula o que deve existir no painel a partir do arquivo do Open Finance. Não grava nada. */
   function planejar(dados) {
@@ -41,6 +48,7 @@
       const card = st.cartoes.find((c) => c.id === mp.cartaoId); if (!card) return;
       const d = dias(conta, card);
       const faturaAtual = mesDaFatura(hoje, d), faturaInicio = mesDaFatura(mp.desde, d);
+      const banco = mp.modo === 'banco', inicioBanco = banco ? inicioDoBanco(conta, d) : null;
       const contas = new Map((conta.faturas || []).map((f) => [f.id, f]));
       // atualiza limite e dias do cartão com o que o banco informa
       const lim = conta.limite != null ? U.round2(conta.limite) : card.limite;
@@ -59,23 +67,36 @@
         const inicioCompra = U.mesAdd(mes, -(j - 1));
         const dataCompra = t.dataCompra || (n > 1 ? null : t.data);
         // só compras novas (a partir da data de início); o que é anterior já está na planilha
-        if (dataCompra ? dataCompra < mp.desde : U.mesDiff(faturaInicio, inicioCompra) <= 0) return;
+        if (!banco && (dataCompra ? dataCompra < mp.desde : U.mesDiff(faturaInicio, inicioCompra) <= 0)) return;
+        if (banco && U.mesDiff(inicioBanco, U.mesAdd(mes, (n > 1 ? n : j) - j)) < 0) return; // modo banco: só o que cai da primeira fatura não paga em diante
         const nome = (t.loja || t.descricao || 'Compra').trim();
         const grupo = n > 1 ? 'of-' + hash(conta.id + '|' + U.slug(t.descricao) + '|' + t.valor.toFixed(2) + '|' + n + '|' + inicioCompra) : null;
         for (let k = j; k <= (n > 1 ? n : 1); k++) {
           const id = n > 1 ? grupo + '-' + k : 'of-' + t.id;
           if (k > j && desejados.has(id)) continue; // a parcela real já veio do banco
           const mesK = U.mesAdd(mes, k - j);
+          if (banco && U.mesDiff(inicioBanco, mesK) < 0) continue;
           desejados.set(id, {
             id, origem: 'openfinance', tipo: 'despesa', descricao: nome + (n > 1 ? ' (' + k + '/' + n + ')' : ''), valor: U.round2(t.valor), categoria: catCartao,
             mesRef: mesK, data: U.dataNoMes(mesK, d.venc || 10), diaVenc: d.venc || null, cartaoId: card.id, formaPagamento: 'Cartão de crédito',
-            grupoCompra: grupo, ofConta: conta.id, ofTx: k === j ? t.id : null, ofData: t.data, projetado: k > j,
+            grupoCompra: grupo, ofConta: conta.id, ofModo: banco ? 'banco' : 'novas', ofTx: k === j ? t.id : null, ofData: t.data, projetado: k > j,
             observacoes: 'Open Finance · compra em ' + U.dataBR(dataCompra || t.data) + (n > 1 ? ' em ' + n + '×' + (k > j ? ' · parcela prevista' : '') : '') + (t.categoria ? ' · ' + t.categoria : ''),
           });
         }
       });
     });
-    return { desejados, cartoesOps };
+    // Modo "fatura inteira pelo banco": zera o valor da planilha desse cartão a partir da primeira fatura não paga
+    // (o valor original fica guardado e volta se o modo for desligado).
+    const zerar = new Map();
+    (dados.contas || []).forEach((conta) => { const mp = mapa[conta.id]; if (!mp || mp.modo !== 'banco' || !mp.cartaoId) return;
+      const card = st.cartoes.find((c) => c.id === mp.cartaoId); if (card) zerar.set(card.id, inicioDoBanco(conta, dias(conta, card))); });
+    const planilhaOps = [];
+    st.lancamentos.filter((l) => l.origem === 'planilha' && l.tipo === 'despesa' && l.cartaoId).forEach((l) => {
+      const ini = zerar.get(l.cartaoId), deveZerar = ini && U.mesDiff(ini, l.mesRef) >= 0;
+      if (deveZerar && l.ofZerado == null) planilhaOps.push({ store: 'lancamentos', item: Object.assign({}, l, { ofZerado: l.valor, valor: 0, editado: Object.assign({}, l.editado || {}, { valor: true }) }) });
+      else if (!deveZerar && l.ofZerado != null) { const e = Object.assign({}, l.editado || {}); delete e.valor; const it = Object.assign({}, l, { valor: l.ofZerado, editado: e }); delete it.ofZerado; planilhaOps.push({ store: 'lancamentos', item: it }); }
+    });
+    return { desejados, cartoesOps: cartoesOps.concat(planilhaOps) };
   }
 
   /** Aplica o arquivo: cria/atualiza/remove os lançamentos do Open Finance. Retorna o resumo. */
@@ -83,6 +104,7 @@
     dados = dados || OF.dados(); if (!dados) return null;
     const st = App.store.state, mapa = OF.mapa(), ex = st.meta.excluidos || {};
     const { desejados, cartoesOps } = planejar(dados);
+    // ao trocar o modo, compras que não devem mais existir saem logo abaixo (fora de "desejados")
     const ops = cartoesOps.slice(); let novos = 0, alterados = 0, removidos = 0;
     const pagoNaFatura = (cartaoId, mes) => st.lancamentos.some((l) => l.cartaoId === cartaoId && l.mesRef === mes && l.origem === 'planilha' && l.situacao === 'pago');
     desejados.forEach((n, id) => {
@@ -90,14 +112,15 @@
       const a = st.lancamentos.find((l) => l.id === id);
       if (!a) { ops.push({ store: 'lancamentos', item: Object.assign({ criadoEm: Date.now(), situacao: pagoNaFatura(n.cartaoId, n.mesRef) ? 'pago' : 'pendente' }, n) }); novos++; return; }
       if (a.editado && Object.keys(a.editado).length) return; // editado à mão: mantém
-      if (['valor', 'mesRef', 'descricao', 'projetado', 'cartaoId', 'ofTx'].some((k) => a[k] !== n[k])) { ops.push({ store: 'lancamentos', item: Object.assign({}, a, n, { situacao: a.situacao, pagamentos: a.pagamentos }) }); alterados++; }
+      if (['valor', 'mesRef', 'descricao', 'projetado', 'cartaoId', 'ofTx', 'ofModo'].some((k) => a[k] !== n[k])) { ops.push({ store: 'lancamentos', item: Object.assign({}, a, n, { situacao: a.situacao, pagamentos: a.pagamentos }) }); alterados++; }
     });
     const contasNoArquivo = new Set((dados.contas || []).map((c) => c.id));
     const limiteJanela = new Date(Date.parse(dados.geradoEm || Date.now()) - 100 * 864e5).toISOString().slice(0, 10);
     st.lancamentos.filter((l) => l.origem === 'openfinance' && l.ofConta && !desejados.has(l.id) && !(l.editado && Object.keys(l.editado).length)).forEach((l) => {
       const semMapa = !mapa[l.ofConta] || !mapa[l.ofConta].cartaoId;
       const sumiu = contasNoArquivo.has(l.ofConta) && (l.projetado || (l.ofData && l.ofData >= limiteJanela)); // compra cancelada / parcela prevista que mudou
-      if (semMapa || sumiu || (mapa[l.ofConta] && mapa[l.ofConta].cartaoId !== l.cartaoId)) { ops.push({ store: 'lancamentos', del: true, id: l.id }); removidos++; }
+      const trocouModo = mapa[l.ofConta] && (mapa[l.ofConta].modo || 'novas') !== (l.ofModo || 'novas');
+      if (semMapa || sumiu || trocouModo || (mapa[l.ofConta] && mapa[l.ofConta].cartaoId !== l.cartaoId)) { ops.push({ store: 'lancamentos', del: true, id: l.id }); removidos++; }
     });
     if (ops.length) await App.store.aplicarLote(ops);
     const r = { novos, alterados, removidos, quando: Date.now() };
@@ -174,7 +197,9 @@
         '<div class="hint">' + (c.limite != null ? 'limite ' + U.brl(c.limite) + (c.disponivel != null ? ' · disponível ' + U.brl(c.disponivel) : '') : '') + (c.fechamento ? ' · fecha ' + U.dataBR(c.fechamento) : '') + (c.vencimento ? ' · vence ' + U.dataBR(c.vencimento) : '') + '</div></div>' +
         (sel && sel !== 'ignorar' ? '<span class="pill good">lançando</span>' : sel === 'ignorar' ? '<span class="pill">ignorado</span>' : '<span class="pill warn">associe a um cartão</span>') + '</div>' +
         '<div class="form-grid" style="margin-top:8px"><label class="field"><span>Cartão no painel</span>' + ui.select('ofCard-' + c.id, opts, sel || sug) + '</label>' +
-        '<label class="field"><span>Lançar compras a partir de</span><input type="date" name="ofDesde-' + c.id + '" value="' + (mp.desde || U.hojeISO()) + '"></label></div>' +
+        '<label class="field"><span>Lançar compras a partir de</span><input type="date" name="ofDesde-' + c.id + '" value="' + (mp.desde || U.hojeISO()) + '"' + (mp.modo === 'banco' ? ' disabled' : '') + '></label>' +
+        '<label class="field" style="grid-column:1/-1"><span>Valor da fatura</span>' + ui.select('ofModo-' + c.id, [{ v: 'novas', t: 'Planilha + compras novas do banco (a partir da data acima)' }, { v: 'banco', t: 'Fatura inteira pelo banco (substitui o valor da planilha a partir da fatura em aberto)' }], mp.modo || 'novas') + '</label></div>' +
+        (mp.modo === 'banco' && mp.cartaoId ? '<p class="hint">Desde a fatura de ' + U.mesLongo(OF.inicioDoBanco(c)) + ', o total deste cartão é a soma das compras e parcelas informadas pelo banco. O valor que estava na planilha fica guardado e volta se você mudar esta opção.</p>' : '') +
         '<div class="actions" style="justify-content:flex-start"><button class="btn sm primary" data-of-salvar="' + c.id + '">' + (sel ? 'Salvar' : 'Começar a lançar') + '</button></div>';
       if (mp.cartaoId) {
         const conf = OF.conferencia(c);
@@ -190,11 +215,12 @@
   OF.ligar = (view) => {
     view.querySelectorAll('[data-of-salvar]').forEach((b) => b.addEventListener('click', async () => {
       const id = b.dataset.ofSalvar, v = view.querySelector('[name="ofCard-' + id + '"]').value, desde = view.querySelector('[name="ofDesde-' + id + '"]').value || U.hojeISO();
+      const modo = view.querySelector('[name="ofModo-' + id + '"]').value;
       if (!v) { ui.toast('Escolha o cartão do painel (ou "Não lançar").', 'bad'); return; }
-      const mapa = Object.assign({}, OF.mapa()); mapa[id] = v === 'ignorar' ? { ignorar: true } : { cartaoId: v, desde };
+      const mapa = Object.assign({}, OF.mapa()); mapa[id] = v === 'ignorar' ? { ignorar: true } : { cartaoId: v, desde, modo };
       await App.store.setMeta('ofMapa', mapa);
       const r = await OF.aplicar();
-      ui.toast(v === 'ignorar' ? 'Esse cartão não será lançado.' : 'Pronto: ' + (r ? r.novos : 0) + ' compra(s) lançada(s) a partir de ' + U.dataBR(desde) + '.', 'good', 6000);
+      ui.toast(v === 'ignorar' ? 'Esse cartão não será lançado.' : modo === 'banco' ? 'Pronto: a fatura deste cartão agora vem do banco (' + (r ? r.novos : 0) + ' compra(s)/parcela(s) lançada(s)).' : 'Pronto: ' + (r ? r.novos : 0) + ' compra(s) lançada(s) a partir de ' + U.dataBR(desde) + '.', 'good', 6000);
     }));
     view.querySelectorAll('[data-of-ajustar]').forEach((b) => b.addEventListener('click', async () => {
       const [id, mes, dif] = b.dataset.ofAjustar.split('|'); const conta = (OF.dados().contas || []).find((c) => c.id === id);
