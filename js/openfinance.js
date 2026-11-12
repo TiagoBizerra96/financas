@@ -79,7 +79,7 @@
           desejados.set(id, {
             id, origem: 'openfinance', tipo: 'despesa', descricao: nome + (n > 1 ? ' (' + k + '/' + n + ')' : ''), valor: U.round2(t.valor), categoria: catCartao,
             mesRef: mesK, data: U.dataNoMes(mesK, d.venc || 10), diaVenc: d.venc || null, cartaoId: card.id, formaPagamento: 'Cartão de crédito',
-            grupoCompra: grupo, ofConta: conta.id, ofModo: banco ? 'banco' : 'novas', ofTx: k === j ? t.id : null, ofData: t.data, projetado: k > j,
+            grupoCompra: grupo, dataCompra: dataCompra || t.data, ofConta: conta.id, ofModo: banco ? 'banco' : 'novas', ofTx: k === j ? t.id : null, ofData: t.data, projetado: k > j,
             observacoes: 'Open Finance · compra em ' + U.dataBR(dataCompra || t.data) + (n > 1 ? ' em ' + n + '×' + (k > j ? ' · parcela prevista' : '') : '') + (t.categoria ? ' · ' + t.categoria : ''),
           });
         }
@@ -94,7 +94,9 @@
     st.lancamentos.filter((l) => l.origem === 'planilha' && l.tipo === 'despesa' && l.cartaoId).forEach((l) => {
       const ini = zerar.get(l.cartaoId), deveZerar = ini && U.mesDiff(ini, l.mesRef) >= 0;
       if (deveZerar && l.ofZerado == null) planilhaOps.push({ store: 'lancamentos', item: Object.assign({}, l, { ofZerado: l.valor, valor: 0, editado: Object.assign({}, l.editado || {}, { valor: true }) }) });
-      else if (!deveZerar && l.ofZerado != null) { const e = Object.assign({}, l.editado || {}); delete e.valor; const it = Object.assign({}, l, { valor: l.ofZerado, editado: e }); delete it.ofZerado; planilhaOps.push({ store: 'lancamentos', item: it }); }
+      // volta o valor guardado; continua marcado como editado para a próxima leitura da planilha não apagar a linha
+      // (a célula ainda tem o valor do banco até o painel regravar a planilha)
+      else if (!deveZerar && l.ofZerado != null) { const it = Object.assign({}, l, { valor: l.ofZerado, editado: Object.assign({}, l.editado || {}, { valor: true }) }); delete it.ofZerado; planilhaOps.push({ store: 'lancamentos', item: it }); }
     });
     return { desejados, cartoesOps: cartoesOps.concat(planilhaOps) };
   }

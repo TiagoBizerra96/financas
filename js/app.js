@@ -3,7 +3,7 @@
   'use strict';
   const U = App.U, ui = App.ui;
   App.views = App.views || {};
-  const TITULOS = { dashboard: 'Dashboard', mensal: 'Análise mensal', contas: 'Contas a pagar', cartoes: 'Cartões e empréstimos', dividas: 'Simulador de dívidas',
+  const TITULOS = { dashboard: 'Dashboard', mensal: 'Análise mensal', contas: 'Contas a pagar', cartoes: 'Cartões e empréstimos', faturas: 'Faturas dos cartões', dividas: 'Simulador de dívidas',
     simulador: 'Simulador financeiro', simcartao: 'Simulador de cartão de crédito', lancamentos: 'Contas e despesas', projecao: 'Projeção anual', config: 'Configurações' };
   App.sel = { mes: null };
   let rotaAtual = null;
