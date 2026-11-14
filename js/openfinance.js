@@ -13,6 +13,16 @@
   OF.mapa = () => App.store.getMeta('ofMapa', {}) || {};
   const dia = (iso) => (iso ? +String(iso).slice(8, 10) : null);
 
+  // Alguns bancos (ex.: Nubank) escrevem a parcela no próprio texto: "PAGUE MENOS 3/4", "LOJA - Parcela 3 de 4".
+  const RE_PARC = /\s*(?:-\s*)?(?:parcela\s*)?(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\s*\)?\s*$/i;
+  function parcelaNoTexto(txt) {
+    const m = RE_PARC.exec(txt || ''); if (!m) return null;
+    if (/^0/.test(m[1]) || /^0/.test(m[2])) return null; // "05/11" é data, não parcela
+    const j = +m[1], n = +m[2];
+    return j >= 1 && n >= 2 && j <= n && n <= 48 ? { j, n } : null;
+  }
+  const semParcela = (txt) => (parcelaNoTexto(txt) ? String(txt || '').replace(RE_PARC, '').replace(/[\s(-]+$/, '') : String(txt || '')).trim();
+  OF._parcelaNoTexto = parcelaNoTexto; OF._semParcela = semParcela;
   function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
 
   /** Dias de fechamento e vencimento do cartão (cadastro do painel, senão o que o banco informou). */
@@ -57,29 +67,37 @@
       if (['limite', 'limiteUsado', 'diaFechamento', 'diaVencimento'].some((k) => novoCard[k] !== card[k])) cartoesOps.push({ store: 'cartoes', item: novoCard });
 
       (dados.transacoes || []).filter((t) => t.contaId === conta.id && t.tipo === 'DEBIT' && t.valor > 0).forEach((t) => {
-        const j = t.parcela || 1, n = Math.max(t.parcelas || 1, j);
-        let mes;
+        const pt = (!t.parcelas || t.parcelas < 2) ? parcelaNoTexto(t.descricao) || parcelaNoTexto(t.loja) : null;
+        const j = pt ? pt.j : (t.parcela || 1), n = pt ? pt.n : Math.max(t.parcelas || 1, j);
+        let mes, inicioCompra;
         const bill = t.billId && contas.get(t.billId);
         if (bill && bill.vencimento) mes = U.mesDeData(bill.vencimento);
-        else if (t.dataCompra && n > 1) mes = U.mesAdd(mesDaFatura(t.dataCompra, d), j - 1);
-        else mes = mesDaFatura(t.data, d);
+        else if (t.dataCompra && n > 1) { inicioCompra = mesDaFatura(t.dataCompra, d); mes = U.mesAdd(inicioCompra, j - 1); }
+        else {
+          mes = mesDaFatura(t.data, d);
+          // parcela ainda não faturada cuja data já ficou para trás: o banco mandou a data da COMPRA (ex.: Nubank repete a data em todas as parcelas)
+          if (n > 1 && j > 1 && U.mesDiff(mes, faturaAtual) > 0) mes = U.mesAdd(mes, j - 1);
+        }
+        if (!inicioCompra) inicioCompra = U.mesAdd(mes, -(j - 1)); // mês da 1ª parcela: identifica a compra (não muda com o ajuste abaixo)
         if (t.status !== 'POSTED' && !bill && U.mesDiff(mes, faturaAtual) > 0) mes = faturaAtual; // ainda não faturada: não pode estar numa fatura que já fechou
-        const inicioCompra = U.mesAdd(mes, -(j - 1));
         const dataCompra = t.dataCompra || (n > 1 ? null : t.data);
         // só compras novas (a partir da data de início); o que é anterior já está na planilha
         if (!banco && (dataCompra ? dataCompra < mp.desde : U.mesDiff(faturaInicio, inicioCompra) <= 0)) return;
         if (banco && U.mesDiff(inicioBanco, U.mesAdd(mes, (n > 1 ? n : j) - j)) < 0) return; // modo banco: só o que cai da primeira fatura não paga em diante
-        const nome = (t.loja || t.descricao || 'Compra').trim();
-        const grupo = n > 1 ? 'of-' + hash(conta.id + '|' + U.slug(t.descricao) + '|' + t.valor.toFixed(2) + '|' + n + '|' + inicioCompra) : null;
+        // nome e grupo SEM o "3/4" do banco: assim as parcelas 1/4, 2/4… da mesma compra caem no mesmo grupo e não se repetem
+        const nome = semParcela(t.loja || t.descricao) || 'Compra';
+        const grupo = n > 1 ? 'of-' + hash(conta.id + '|' + U.slug(semParcela(t.descricao)) + '|' + t.valor.toFixed(2) + '|' + n + '|' + inicioCompra) : null;
         for (let k = j; k <= (n > 1 ? n : 1); k++) {
           const id = n > 1 ? grupo + '-' + k : 'of-' + t.id;
-          if (k > j && desejados.has(id)) continue; // a parcela real já veio do banco
+          const ja = desejados.get(id);
+          if (k > j && ja && (!ja.projetado || ja._srcJ >= j)) continue; // a parcela real já veio do banco (ou uma previsão mais recente)
           const mesK = U.mesAdd(mes, k - j);
           if (banco && U.mesDiff(inicioBanco, mesK) < 0) continue;
           desejados.set(id, {
             id, origem: 'openfinance', tipo: 'despesa', descricao: nome + (n > 1 ? ' (' + k + '/' + n + ')' : ''), valor: U.round2(t.valor), categoria: catCartao,
             mesRef: mesK, data: U.dataNoMes(mesK, d.venc || 10), diaVenc: d.venc || null, cartaoId: card.id, formaPagamento: 'Cartão de crédito',
             grupoCompra: grupo, dataCompra: dataCompra || t.data, ofConta: conta.id, ofModo: banco ? 'banco' : 'novas', ofTx: k === j ? t.id : null, ofData: t.data, projetado: k > j,
+            _srcJ: j,
             observacoes: 'Open Finance · compra em ' + U.dataBR(dataCompra || t.data) + (n > 1 ? ' em ' + n + '×' + (k > j ? ' · parcela prevista' : '') : '') + (t.categoria ? ' · ' + t.categoria : ''),
           });
         }
@@ -110,6 +128,7 @@
     const ops = cartoesOps.slice(); let novos = 0, alterados = 0, removidos = 0;
     const pagoNaFatura = (cartaoId, mes) => st.lancamentos.some((l) => l.cartaoId === cartaoId && l.mesRef === mes && l.origem === 'planilha' && l.situacao === 'pago');
     desejados.forEach((n, id) => {
+      delete n._srcJ;
       if (ex[id]) return;                                   // apagado de propósito no painel
       const a = st.lancamentos.find((l) => l.id === id);
       if (!a) { ops.push({ store: 'lancamentos', item: Object.assign({ criadoEm: Date.now(), situacao: pagoNaFatura(n.cartaoId, n.mesRef) ? 'pago' : 'pendente' }, n) }); novos++; return; }
@@ -117,10 +136,12 @@
       if (['valor', 'mesRef', 'descricao', 'projetado', 'cartaoId', 'ofTx', 'ofModo'].some((k) => a[k] !== n[k])) { ops.push({ store: 'lancamentos', item: Object.assign({}, a, n, { situacao: a.situacao, pagamentos: a.pagamentos }) }); alterados++; }
     });
     const contasNoArquivo = new Set((dados.contas || []).map((c) => c.id));
+    const txNoArquivo = new Set((dados.transacoes || []).map((t) => t.id));
     const limiteJanela = new Date(Date.parse(dados.geradoEm || Date.now()) - 100 * 864e5).toISOString().slice(0, 10);
     st.lancamentos.filter((l) => l.origem === 'openfinance' && l.ofConta && !desejados.has(l.id) && !(l.editado && Object.keys(l.editado).length)).forEach((l) => {
       const semMapa = !mapa[l.ofConta] || !mapa[l.ofConta].cartaoId;
-      const sumiu = contasNoArquivo.has(l.ofConta) && (l.projetado || (l.ofData && l.ofData >= limiteJanela)); // compra cancelada / parcela prevista que mudou
+      // compra cancelada, parcela prevista que mudou, ou compra que agora está com outro identificador (correção das parcelas repetidas)
+      const sumiu = contasNoArquivo.has(l.ofConta) && (l.projetado || (l.ofTx && txNoArquivo.has(l.ofTx)) || (l.ofData && l.ofData >= limiteJanela)); // compra cancelada / parcela prevista que mudou
       const trocouModo = mapa[l.ofConta] && (mapa[l.ofConta].modo || 'novas') !== (l.ofModo || 'novas');
       if (semMapa || sumiu || trocouModo || (mapa[l.ofConta] && mapa[l.ofConta].cartaoId !== l.cartaoId)) { ops.push({ store: 'lancamentos', del: true, id: l.id }); removidos++; }
     });
