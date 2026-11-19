@@ -119,6 +119,71 @@
     return { desejados, cartoesOps: cartoesOps.concat(planilhaOps) };
   }
 
+  /* ---------- pagamentos de fatura informados pelo banco ---------- */
+  const RE_PAGTO = /pagamento|pagto|pgto|pag\.? ?fatura|payment/i, RE_NAO_PAGTO = /estorno|reembolso|cashback|devolu|cancel|juros|iof|tarifa|anuidade/i;
+  OF._ehPagamento = (t) => t.tipo === 'CREDIT' && t.valor > 0 && RE_PAGTO.test((t.descricao || '') + ' ' + (t.loja || '')) && !RE_NAO_PAGTO.test(t.descricao || '');
+  /** Qual fatura um pagamento feito nesta data quita: a primeira que vence a partir de 10 dias antes do pagamento. */
+  function faturaDoPagamento(iso, d) {
+    const base = mesDaFatura(iso, d);
+    if (!d.venc) return U.mesAdd(base, -1);
+    const limite = new Date(Date.parse(iso) - 10 * 864e5).toISOString().slice(0, 10);
+    for (let k = -2; k <= 1; k++) { const m = U.mesAdd(base, k); if (U.dataNoMes(m, d.venc) >= limite) return m; }
+    return base;
+  }
+  OF._faturaDoPagamento = faturaDoPagamento;
+  /** Marca como pagas (ou com pagamento parcial) as faturas que o banco informa que foram pagas. Não mexe no que foi marcado à mão. */
+  function planejarPagamentos(dados) {
+    const st = App.store.state, mapa = OF.mapa(), ops = [], quitadas = [];
+    const ehOF = (p) => p && p.origem === 'openfinance';
+    (dados.contas || []).forEach((conta) => {
+      const mp = mapa[conta.id]; if (!mp || !mp.cartaoId) return;
+      const card = st.cartoes.find((c) => c.id === mp.cartaoId); if (!card) return;
+      const d = dias(conta, card);
+      const porMes = {};
+      (dados.transacoes || []).filter((t) => t.contaId === conta.id && OF._ehPagamento(t)).forEach((t) => {
+        const m = faturaDoPagamento(t.data, d); (porMes[m] = porMes[m] || []).push(t);
+      });
+      // meses a recalcular: os que têm pagamento do banco + os que já tinham marcação automática (o pagamento pode ter sumido)
+      const meses = new Set(Object.keys(porMes));
+      st.lancamentos.forEach((l) => { if (l.cartaoId === card.id && (l.ofPagoAuto || (l.pagamentos || []).some(ehOF))) meses.add(l.mesRef); });
+      meses.forEach((m) => {
+        const pags = (porMes[m] || []).sort((a, b) => (a.data < b.data ? -1 : 1));
+        let resta = U.round2(U.sum(pags, (t) => t.valor));
+        const itens = st.lancamentos.filter((l) => l.cartaoId === card.id && l.mesRef === m && l.tipo === 'despesa')
+          .sort((a, b) => (a.origem === 'planilha' ? -1 : b.origem === 'planilha' ? 1 : (a.data || '') < (b.data || '') ? -1 : 1));
+        const total = U.round2(U.sum(itens, (l) => l.valor));
+        let mudouParaPaga = false;
+        const novos = itens.map((l) => {
+          const manualPago = l.situacao === 'pago' && !l.ofPagoAuto;
+          const outros = (l.pagamentos || []).filter((p) => !ehOF(p));
+          const jaPago = manualPago ? l.valor : Math.min(l.valor, U.sum(outros, (p) => +p.valor || 0));
+          const v = manualPago ? 0 : U.round2(Math.min(resta, Math.max(0, l.valor - jaPago)));
+          resta = U.round2(resta - v);
+          if (manualPago) return l;
+          const ultimo = pags[pags.length - 1];
+          const pagamentos = outros.concat(v > 0.004 ? [{ id: 'ofpag-' + l.id, valor: v, data: ultimo ? ultimo.data : U.hojeISO(), origem: 'openfinance', obs: 'Pagamento da fatura informado pelo banco (Open Finance)' }] : []);
+          const quitada = pags.length > 0 && jaPago + v >= l.valor - 0.004 && (v > 0.004 || l.valor <= 0.004 || jaPago > 0.004);
+          const n = Object.assign({}, l, { pagamentos, situacao: quitada ? 'pago' : (l.ofPagoAuto ? 'pendente' : l.situacao), ofPagoAuto: quitada, situacaoPresumida: false });
+          if (quitada && l.situacao !== 'pago') mudouParaPaga = true;
+          return n;
+        });
+        novos.forEach((n, i) => {
+          const a = itens[i]; if (n === a) return;
+          if (JSON.stringify([a.situacao, a.pagamentos || [], !!a.ofPagoAuto]) !== JSON.stringify([n.situacao, n.pagamentos, !!n.ofPagoAuto])) ops.push({ store: 'lancamentos', item: n });
+        });
+        if (mudouParaPaga && pags.length && novos.every((n) => n.situacao === 'pago')) quitadas.push(card.nome + ' (' + U.mesLongo(m) + ')');
+        void total;
+      });
+    });
+    return { ops, quitadas };
+  }
+
+  /** Opção desligada: tira as marcações que o Open Finance tinha feito (as feitas à mão ficam). */
+  function desfazerPagamentos() {
+    return App.store.state.lancamentos.filter((l) => l.ofPagoAuto || (l.pagamentos || []).some((p) => p.origem === 'openfinance')).map((l) => ({ store: 'lancamentos',
+      item: Object.assign({}, l, { pagamentos: (l.pagamentos || []).filter((p) => p.origem !== 'openfinance'), situacao: l.ofPagoAuto ? 'pendente' : l.situacao, ofPagoAuto: false }) }));
+  }
+
   /** Aplica o arquivo: cria/atualiza/remove os lançamentos do Open Finance. Retorna o resumo. */
   OF.aplicar = async (dados) => {
     dados = dados || OF.dados(); if (!dados) return null;
@@ -146,7 +211,10 @@
       if (semMapa || sumiu || trocouModo || (mapa[l.ofConta] && mapa[l.ofConta].cartaoId !== l.cartaoId)) { ops.push({ store: 'lancamentos', del: true, id: l.id }); removidos++; }
     });
     if (ops.length) await App.store.aplicarLote(ops);
-    const r = { novos, alterados, removidos, quando: Date.now() };
+    // depois das compras: pagamentos de fatura que o banco informou
+    const pg = App.store.getMeta('ofMarcarPagas', true) !== false ? planejarPagamentos(dados) : { ops: desfazerPagamentos(), quitadas: [] };
+    if (pg.ops.length) await App.store.aplicarLote(pg.ops);
+    const r = { novos, alterados, removidos, pagas: pg.quitadas, quando: Date.now() };
     await App.store.setMetaSilencioso('ofUltimaAplicacao', r);
     return r;
   };
@@ -157,6 +225,7 @@
     await App.store.setMetaSilencioso('ofDados', dados);
     const r = await OF.aplicar(dados);
     if (r && r.novos) ui.toast('Open Finance: ' + r.novos + ' compra(s) nova(s) lançada(s) nas faturas.', 'good', 6000);
+    if (r && r.pagas && r.pagas.length) ui.toast('Open Finance: fatura paga — ' + r.pagas.join(', ') + '.', 'good', 7000);
     return r;
   };
 
@@ -209,6 +278,7 @@
     const ult = App.store.getMeta('ofUltimaAplicacao', null);
     h += '<p class="prose small">Cada compra nova vai para a fatura certa do cartão (parceladas: todas as parcelas). Compras feitas antes da data de início não entram, porque já estão nos valores da planilha. ' +
       'O banco atualiza o Open Finance cerca de uma vez por dia.' + (ult ? ' Última leitura: ' + ult.novos + ' novas, ' + ult.alterados + ' atualizadas, ' + ult.removidos + ' removidas.' : '') + '</p>';
+    h += '<label class="check" style="margin:4px 0 8px"><input type="checkbox" id="ofMarcarPagas"' + (App.store.getMeta('ofMarcarPagas', true) !== false ? ' checked' : '') + '> Marcar a fatura como paga quando o banco informar o pagamento (pagamento menor que a fatura fica como parcial)</label>';
     if ((dados.erros || []).length) h += '<div class="banner warn">' + ui.icon('alert') + '<div><b>Avisos da última busca no banco</b>' + dados.erros.map(U.esc).join('<br>') + '</div></div>';
     const opts = [{ v: '', t: '— escolher —' }, { v: 'ignorar', t: 'Não lançar (ignorar este cartão)' }].concat(st.cartoes.filter((c) => !c.inativo).sort((a, b) => a.nome.localeCompare(b.nome)).map((c) => ({ v: c.id, t: c.nome })));
     (dados.contas || []).forEach((c) => {
@@ -236,6 +306,8 @@
     return h + '</section>';
   };
   OF.ligar = (view) => {
+    const mp = view.querySelector('#ofMarcarPagas');
+    if (mp) mp.addEventListener('change', async (e) => { await App.store.setMeta('ofMarcarPagas', e.target.checked); const r = await OF.aplicar(); ui.toast(e.target.checked ? 'Pagamentos do banco ligados' + (r && r.pagas && r.pagas.length ? ': ' + r.pagas.join(', ') + ' paga(s).' : '.') : 'As faturas não serão mais marcadas como pagas automaticamente.', 'good', 6000); });
     view.querySelectorAll('[data-of-salvar]').forEach((b) => b.addEventListener('click', async () => {
       const id = b.dataset.ofSalvar, v = view.querySelector('[name="ofCard-' + id + '"]').value, desde = view.querySelector('[name="ofDesde-' + id + '"]').value || U.hojeISO();
       const modo = view.querySelector('[name="ofModo-' + id + '"]').value;
