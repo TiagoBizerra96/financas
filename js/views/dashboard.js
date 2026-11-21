@@ -49,6 +49,10 @@
         ui.kpi({ rotulo: 'Dívidas em aberto', valor: U.brl(div.total), icone: 'alert', nivel: div.total > 0 ? 'warn' : 'good',
           sub: 'faturas e parcelas a partir deste mês' + (div.simulador ? ' + ' + U.brl0(div.simulador) + ' no simulador' : ''),
           titulo: 'Soma das faturas e parcelas pendentes da planilha a partir do mês atual, mais o saldo das dívidas cadastradas no simulador.' }) +
+        (() => { const lm = App.openfinance && App.openfinance.limites(); if (!lm || !lm.n) return '';
+          return ui.kpi({ rotulo: 'Limite dos cartões (Open Finance)', valor: U.brl(lm.total), icone: 'card', nivel: lm.total ? ui.nivelPct(lm.usado / lm.total) : '', barra: lm.total ? lm.usado / lm.total : null,
+            sub: 'disponível ' + U.brl(lm.disponivel) + ' · usado ' + U.brl(lm.usado) + '<br>' + lm.n + ' cartão(ões)' + (lm.quando ? ' · banco em ' + U.dataHoraBR(Date.parse(lm.quando)) : ''),
+            titulo: lm.itens.map((x) => x.nome + ': limite ' + U.brl(x.limite) + (x.disponivel != null ? ', disponível ' + U.brl(x.disponivel) : '')).join(' | ') }); })() +
         ui.kpi({ rotulo: 'Dinheiro guardado', valor: U.brl(eco.total), icone: 'piggy', nivel: eco.total > 0 ? 'good' : '',
           sub: eco.total ? 'reserva informada + lançamentos de reserva' : 'informe sua reserva em <a href="#config">Configurações</a>' }) +
         ui.kpi({ rotulo: 'Evolução do saldo', valor: ant.qtd ? (r.saldo - ant.saldo > 0 ? '+' : '') + U.brl(r.saldo - ant.saldo) : '—', icone: 'trend',
