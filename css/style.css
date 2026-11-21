@@ -225,3 +225,16 @@ details.box summary { cursor: pointer; font-weight: 600; }
 .modal { min-width: 0; max-height: calc(100dvh - 32px); }
 .modal-body { min-height: 0; overflow-x: auto; }
 @media (max-width: 520px) { .modal-back { padding: 8px; } .modal { max-height: calc(100dvh - 16px); } .modal-head, .modal-body, .modal-foot { padding-left: 14px; padding-right: 14px; } }
+/* Pagamentos por data */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dot.g-fixa { background: var(--c-fixa); } .dot.g-cartao { background: var(--c-cartao); } .dot.g-emprestimo { background: var(--c-emprestimo); }
+.dot.g-variavel { background: var(--c-variavel); } .dot.g-reserva { background: var(--c-reserva); } .dot.g-receita { background: var(--c-receita); }
+.ag-dia { border-top: 1px solid var(--line); padding: 10px 0; }
+.ag-dia:first-of-type { border-top: 0; }
+.ag-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.ag-data { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.ag-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.ag-desc { flex: 1; min-width: 0; }
+.ag-val { font-weight: 700; white-space: nowrap; }
+.ag-foot { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+@media (max-width: 520px) { .ag-item { flex-wrap: wrap; } .ag-desc { flex-basis: calc(100% - 20px); } }
