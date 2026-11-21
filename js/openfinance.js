@@ -119,6 +119,26 @@
     return { desejados, cartoesOps: cartoesOps.concat(planilhaOps) };
   }
 
+  /** Soma dos limites dos cartões ligados ao Open Finance (o que o banco informou; nos dois aparelhos). */
+  OF.limites = () => {
+    const st = App.store.state, mapa = OF.mapa(), d = OF.dados();
+    const contas = new Map(((d && d.contas) || []).map((c) => [c.id, c]));
+    const vistos = new Set(), itens = [];
+    Object.keys(mapa).forEach((cid) => {
+      const mp = mapa[cid]; if (!mp || !mp.cartaoId || vistos.has(mp.cartaoId)) return;
+      const card = st.cartoes.find((c) => c.id === mp.cartaoId); if (!card) return;
+      vistos.add(card.id);
+      const co = contas.get(cid);
+      const limite = co && co.limite != null ? +co.limite : card.limite;
+      if (limite == null) return;
+      const disp = co && co.disponivel != null ? +co.disponivel : (card.limiteUsado != null ? limite - card.limiteUsado : null);
+      itens.push({ nome: card.nome, limite: U.round2(limite), disponivel: disp != null ? U.round2(disp) : null });
+    });
+    const total = U.round2(U.sum(itens, (x) => x.limite));
+    const disponivel = U.round2(U.sum(itens.filter((x) => x.disponivel != null), (x) => x.disponivel));
+    return { n: itens.length, total, disponivel, usado: U.round2(total - disponivel), itens, quando: d && d.geradoEm };
+  };
+
   /* ---------- pagamentos de fatura informados pelo banco ---------- */
   const RE_PAGTO = /pagamento|pagto|pgto|pag\.? ?fatura|payment/i, RE_NAO_PAGTO = /estorno|reembolso|cashback|devolu|cancel|juros|iof|tarifa|anuidade/i;
   OF._ehPagamento = (t) => t.tipo === 'CREDIT' && t.valor > 0 && RE_PAGTO.test((t.descricao || '') + ' ' + (t.loja || '')) && !RE_NAO_PAGTO.test(t.descricao || '');
